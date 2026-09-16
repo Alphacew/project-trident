@@ -5,7 +5,7 @@ Signal Evaluations, CAS Reports, and Anchor Evaluation Results.
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 

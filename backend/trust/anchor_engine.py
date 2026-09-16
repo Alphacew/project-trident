@@ -6,7 +6,7 @@ Strictly enforces the context discount factor cap: delta >= 0.15 (attenuation <=
 
 import math
 from datetime import datetime, timezone
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, Union
 from backend.trust.authenticity import ContextAuthenticityEngine
 from backend.trust.schemas import (
     AnchorEvaluationResult,
