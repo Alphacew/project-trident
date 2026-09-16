@@ -103,6 +103,7 @@ class ReactFlowEdge(BaseModel):
     target: str
     label: str = ""
     animated: bool = False
+    style: Dict[str, Any] = Field(default_factory=dict)
     data: Dict[str, Any] = Field(default_factory=dict)
 
 

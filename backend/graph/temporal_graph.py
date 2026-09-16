@@ -256,10 +256,14 @@ class TemporalGraphBuilder:
     def get_all_edges(self) -> List[GraphEdgeData]:
         return list(self._edges_by_id.values())
 
-    def get_edge_ids_in_window(self, t_start: datetime, t_end: datetime) -> List[str]:
+    def get_edge_ids_in_window(
+        self,
+        t_start: Optional[datetime] = None,
+        t_end: Optional[datetime] = None
+    ) -> List[str]:
         """Uses binary bisection search for O(log E + k) windowed edge lookups."""
-        start_epoch = t_start.timestamp()
-        end_epoch = t_end.timestamp()
+        start_epoch = t_start.timestamp() if t_start is not None else 0.0
+        end_epoch = t_end.timestamp() if t_end is not None else float("inf")
 
         # Find slice indices in sorted chronological list
         start_idx = bisect.bisect_left(self._edge_chronological_index, (start_epoch, ""))
