@@ -324,3 +324,85 @@ class TimeWindowExtractor:
             data_volume_score=round(min(1.0, event_count / 50.0), 4),
             features=feature_array
         )
+
+    def extract_behavioral_vector(
+        self,
+        actor_token: str,
+        window_start: datetime,
+        window_end: datetime,
+        historical_resources: Optional[Set[str]] = None,
+        expected_daily_volume: float = 5.0,
+    ) -> Any:
+        """Extracts DevB's 6-dimensional BehavioralFeatureVector directly from graph state.
+        
+        Maps graph activity into:
+        1. event_volume_rate: normalized frequency relative to expected baseline
+        2. resource_sensitivity_mean: average sensitivity of accessed resources in window
+        3. new_resource_discovery_ratio: fraction of resources not seen in historical baseline
+        4. off_hours_ratio: fraction of operations outside 08:00-18:00 or weekends
+        5. action_privilege_intensity: ratio of privileged/sensitive actions (queries, staging, admin)
+        6. cross_boundary_entropy: dispersion across distinct service/resource domains
+        """
+        from backend.drift.schemas import BehavioralFeatureVector
+
+        edge_ids = self.builder.get_edge_ids_in_window(window_start, window_end)
+        actor_edges = [
+            self.builder.get_edge(eid)
+            for eid in edge_ids
+            if self.builder.get_edge(eid) and self.builder.get_edge(eid).source_id == actor_token
+        ]
+
+        if not actor_edges:
+            return BehavioralFeatureVector(
+                event_volume_rate=0.0,
+                resource_sensitivity_mean=0.0,
+                new_resource_discovery_ratio=0.0,
+                off_hours_ratio=0.0,
+                action_privilege_intensity=0.0,
+                cross_boundary_entropy=0.0,
+            )
+
+        event_count = len(actor_edges)
+        volume_rate = round(event_count / expected_daily_volume, 4)
+
+        sensitivities = [e.sensitivity for e in actor_edges]
+        avg_sens = round(sum(sensitivities) / event_count, 4)
+
+        current_resources = set(e.target_id for e in actor_edges)
+        if historical_resources is not None and current_resources:
+            new_res = current_resources - historical_resources
+            new_res_ratio = round(len(new_res) / len(current_resources), 4)
+        else:
+            new_res_ratio = 0.0
+
+        off_hours_count = sum(
+            1 for e in actor_edges
+            if e.timestamp.hour < 8 or e.timestamp.hour >= 18 or e.timestamp.weekday() >= 5
+        )
+        off_hours_ratio = round(off_hours_count / event_count, 4)
+
+        # Privileged actions: queries on sensitive data, staging, role assumptions, modifications
+        privileged_types = {EdgeType.QUERIED, EdgeType.STAGED, EdgeType.EXFILTRATED, EdgeType.ASSUMED_ROLE, EdgeType.MODIFIED, EdgeType.CANARY_TRIP}
+        privileged_count = sum(
+            1 for e in actor_edges
+            if e.edge_type in privileged_types or e.sensitivity >= 0.7
+        )
+        privilege_intensity = round(privileged_count / event_count, 4)
+
+        # Cross-boundary entropy: distinct resource prefixes/types
+        domains = [e.target_id.split(":")[0] if ":" in e.target_id else "generic" for e in actor_edges]
+        domain_counts = Counter(domains)
+        entropy = 0.0
+        for cnt in domain_counts.values():
+            p = cnt / event_count
+            entropy -= p * math.log2(p)
+
+        return BehavioralFeatureVector(
+            event_volume_rate=volume_rate,
+            resource_sensitivity_mean=avg_sens,
+            new_resource_discovery_ratio=new_res_ratio,
+            off_hours_ratio=off_hours_ratio,
+            action_privilege_intensity=privilege_intensity,
+            cross_boundary_entropy=round(entropy, 4),
+        )
+
