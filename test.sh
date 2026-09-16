@@ -14,7 +14,7 @@ fi
 echo "================================================="
 echo "Running TRIDENT Invariant & Integration Tests..."
 echo "================================================="
-.venv/bin/pytest -v --cov=backend/ingestion --cov=backend/trust --cov=backend/common tests/
+.venv/bin/pytest -v --cov=backend tests/
 echo "================================================="
 echo "All Invariant & Verification Tests Passed!"
 echo "================================================="

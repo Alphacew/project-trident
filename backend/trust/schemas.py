@@ -73,6 +73,19 @@ class EventContextStub(BaseModel):
     resource_sensitivity: float = Field(default=0.5, ge=0.0, le=1.0)
     source_type: str = "CloudTrail"
 
+    @classmethod
+    def from_canonical_event(cls, event: Any) -> "EventContextStub":
+        """Adapter constructing an EventContextStub from a DevA CanonicalEvent."""
+        return cls(
+            event_id=event.event_id,
+            timestamp=event.timestamp,
+            actor_token=event.actor.actor_token,
+            action=event.action,
+            target_resource=event.resource.resource_id,
+            resource_sensitivity=event.resource.sensitivity,
+            source_type=event.source_system,
+        )
+
 
 class SignalEvaluation(BaseModel):
     """Score and explanation for a single CAS signal (s_i in [-1.0, 1.0])."""

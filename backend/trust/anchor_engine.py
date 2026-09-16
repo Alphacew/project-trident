@@ -51,16 +51,22 @@ class TrustAnchorEngine:
 
     def evaluate(
         self,
-        event: EventContextStub,
+        event: Any,
         candidate_anchors: List[ContextAnchor],
     ) -> AnchorEvaluationResult:
         """Evaluates an event against candidate organizational anchors.
         Selects best anchor by maximizing AnchorScore and enforces discount cap.
+        Accepts either an EventContextStub or a DevA CanonicalEvent directly.
         """
+        if hasattr(event, "actor") and hasattr(event, "resource"):
+            event_stub = EventContextStub.from_canonical_event(event)
+        else:
+            event_stub = event
+
         # Edge Case: Zero candidate anchors
         if not candidate_anchors:
             return AnchorEvaluationResult(
-                event_id=event.event_id,
+                event_id=event_stub.event_id,
                 selected_anchor_id=None,
                 selected_anchor_type=None,
                 anchor_score=0.0,
@@ -87,17 +93,17 @@ class TrustAnchorEngine:
             auth_weight = max(0.0, min(1.0, anchor.authority_weight))
 
             # 2. Scope match
-            scope_match = compute_scope_match(anchor, event)
+            scope_match = compute_scope_match(anchor, event_stub)
 
             # 3. Context Authenticity Score (CAS)
             cas_report = self.cas_engine.evaluate_anchor(
                 anchor=anchor,
-                event=event,
+                event=event_stub,
                 precomputed_scope_score=scope_match,
             )
 
             # 4. Temporal decay
-            decay, delta_mins = self._compute_temporal_decay(anchor, event)
+            decay, delta_mins = self._compute_temporal_decay(anchor, event_stub)
 
             # 5. Candidate Anchor Score = Auth * CAS * ScopeMatch * TemporalDecay
             candidate_anchor_score = auth_weight * cas_report.cas_score * scope_match * decay
@@ -122,7 +128,7 @@ class TrustAnchorEngine:
         discount_factor = max(0.15, min(1.0, discount_factor))
 
         return AnchorEvaluationResult(
-            event_id=event.event_id,
+            event_id=event_stub.event_id,
             selected_anchor_id=best_anchor.anchor_id if best_anchor else None,
             selected_anchor_type=best_anchor.anchor_type if best_anchor else None,
             anchor_score=round(final_anchor_score, 4),
