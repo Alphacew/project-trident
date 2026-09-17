@@ -168,3 +168,44 @@ def test_privacy_vault_endpoints(client):
     assert "SOC_LEAD" in receipt["participating_custodians"]
     assert "DPO_LEGAL" in receipt["participating_custodians"]
     assert "REVEAL-" in receipt["receipt_id"]
+    assert len(receipt["entry_hash"]) == 64
+
+    # Verify audit log contains the new receipt
+    res_log = client.get("/api/privacy/vault/audit-log")
+    assert res_log.status_code == 200
+    log_entries = res_log.json()
+    assert len(log_entries) >= 1
+    assert log_entries[-1]["receipt_id"] == receipt["receipt_id"]
+
+    # Verify cryptographic hash chain integrity
+    res_verify = client.post("/api/privacy/vault/verify-log")
+    assert res_verify.status_code == 200
+    verify_data = res_verify.json()
+    assert verify_data["verified"] is True
+    assert verify_data["status"] == "TAMPER_FREE"
+
+    # Test anti-harassment query validation: direct email query is blocked
+    res_block = client.post(
+        "/api/privacy/query/validate",
+        json={"query": "elena.rostova@megacorp.internal", "analyst_id": "SOC-Analyst-1"},
+    )
+    assert res_block.status_code == 200
+    block_data = res_block.json()
+    assert block_data["allowed"] is False
+    assert block_data["query_type"] == "BLOCKED_EMAIL"
+
+    # Test anti-harassment query validation: pseudonym query is allowed
+    res_allow = client.post(
+        "/api/privacy/query/validate",
+        json={"query": "Subject-Theta-482", "analyst_id": "SOC-Analyst-1"},
+    )
+    assert res_allow.status_code == 200
+    allow_data = res_allow.json()
+    assert allow_data["allowed"] is True
+    assert allow_data["query_type"] == "PSEUDONYM"
+
+    # Test harassment alerts retrieval
+    res_alerts = client.get("/api/privacy/harassment/alerts")
+    assert res_alerts.status_code == 200
+    assert isinstance(res_alerts.json(), list)
+

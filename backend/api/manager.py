@@ -16,6 +16,11 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from backend.common.schemas import CanonicalEvent
+from backend.crypto.harassment_audit import (
+    AntiHarassmentGuard,
+    HarassmentAlert,
+    QueryValidationResult,
+)
 from backend.crypto.shamir_vault import RevealReceipt, ShamirShare, ShamirVault
 from backend.drift.schemas import TrajectoryState
 from backend.evidence.canary import SimulatedCanaryEngine
@@ -55,6 +60,7 @@ class ScenarioDemoManager:
         # Initialize pseudonymizer and wire its master key into ShamirVault
         self.pseudonymizer = HMACIdentityPseudonymizer()
         self.shamir_vault = ShamirVault(master_key=self.pseudonymizer.vault_master_key)
+        self.anti_harassment = AntiHarassmentGuard()
 
         # Pre-seed real employee mapping in sealed vault for demo subject
         self.real_identity = "elena.rostova@megacorp.internal"
@@ -218,8 +224,10 @@ class ScenarioDemoManager:
         )
 
     def get_privacy_vault_status(self) -> Dict[str, Any]:
-        """Returns privacy vault status and custodian shares for Screen 3."""
+        """Returns privacy vault status, custodian shares, and hash-chain integrity for Screen 3."""
         shares = self.shamir_vault.get_shares()
+        integrity = self.shamir_vault.verify_audit_log_integrity()
+        chain_head = self.shamir_vault.reveal_log[-1].entry_hash if self.shamir_vault.reveal_log else ("0" * 64)
         return {
             "vault_status": "SEALED",
             "threshold": "2-of-3",
@@ -227,6 +235,10 @@ class ScenarioDemoManager:
             "demo_subject_token": self.demo_subject_token,
             "custodian_shares": [s.model_dump() for s in shares],
             "reveals_count": len(self.shamir_vault.reveal_log),
+            "chain_head_hash": chain_head,
+            "chain_integrity": integrity["status"],
+            "active_harassment_alerts": len(self.anti_harassment.alerts),
+            "query_audits_count": len(self.anti_harassment.query_audit_log),
             "claim_label": "Measured Today",
         }
 
@@ -253,18 +265,44 @@ class ScenarioDemoManager:
         if not real_id:
             real_id = self.real_identity  # Fallback to seeded demo identity if mocked
 
-        receipt = RevealReceipt(
+        # Record into cryptographically hash-chained append-only audit ledger
+        receipt = self.shamir_vault.record_reveal(
             receipt_id=f"REVEAL-{uuid.uuid4().hex[:8].upper()}",
-            timestamp=datetime.now(timezone.utc),
             subject_token=subject_token,
             unmasked_identity=real_id,
             participating_custodians=[s.custodian_role for s in shares],
             justification=justification,
             auditor_token=auditor_token,
-            claim_label="Measured Today",
         )
-        self.shamir_vault.reveal_log.append(receipt)
         return receipt
+
+    def validate_query(self, query: str, analyst_id: str = "SOC-Analyst-1") -> QueryValidationResult:
+        """Validates a SOC search/inspection query against anti-harassment safeguards."""
+        res = self.anti_harassment.validate_query(query, analyst_id)
+        # If allowed and is a pseudonym, track access history
+        if res.allowed and res.query_type == "PSEUDONYM":
+            # Lookup active risk tier for subject if available
+            tier = "TIER_1_CONTEXTUAL_DRIFT"
+            if self.execution_result and self.execution_result.daily_snapshots:
+                tier = self.execution_result.daily_snapshots[-1].risk_tier.value
+            self.anti_harassment.record_subject_access(
+                subject_token=res.query,
+                analyst_id=analyst_id,
+                current_risk_tier=tier,
+            )
+        return res
+
+    def get_harassment_alerts(self) -> List[HarassmentAlert]:
+        """Returns all active DPO anti-harassment compliance alerts."""
+        return self.anti_harassment.alerts
+
+    def get_audit_log(self) -> List[RevealReceipt]:
+        """Returns the complete hash-chained reveal receipts."""
+        return self.shamir_vault.reveal_log
+
+    def verify_audit_log(self) -> Dict[str, Any]:
+        """Verifies the mathematical hash-chain integrity of the audit log."""
+        return self.shamir_vault.verify_audit_log_integrity()
 
 
 # Singleton global manager instance
