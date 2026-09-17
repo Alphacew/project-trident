@@ -32,10 +32,21 @@ export const PrivacyVaultView: React.FC = () => {
   ): Promise<RevealReceipt | null> => {
     try {
       const receipt = await api.recombineShamirShares(shares, subjectToken, justification, auditorToken);
-      // Prepend to audit log
-      setAuditLog((prev) => [receipt, ...prev]);
-      return receipt;
-    } catch {
+      if (receipt) {
+        // Prepend to audit log
+        setAuditLog((prev) => [receipt, ...prev]);
+        // Dynamically update vault status
+        setVaultStatus((prev) => ({
+          ...prev,
+          reveals_count: (prev.reveals_count || 0) + 1,
+          chain_head_hash: receipt.entry_hash,
+          vault_status: "UNMASKED_EPHEMERAL",
+        }));
+        return receipt;
+      }
+      return null;
+    } catch (err) {
+      console.error("Ceremony execution failed:", err);
       return null;
     }
   };

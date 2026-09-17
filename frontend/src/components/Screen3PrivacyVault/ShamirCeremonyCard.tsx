@@ -19,15 +19,27 @@ export const ShamirCeremonyCard: React.FC<ShamirCeremonyCardProps> = ({
   onExecuteCeremony,
 }) => {
   const [selectedShares, setSelectedShares] = useState<number[]>([1, 2]); // default 2 shares selected
-  const [subjectToken, setSubjectToken] = useState<string>("Subject-Theta-482");
+  const [subjectToken, setSubjectToken] = useState<string>(
+    vaultStatus.demo_subject_token || "Subject-Theta-482"
+  );
   const [justification, setJustification] = useState<string>(
     "Tier 4 Critical insider breach investigation authorized by Legal & Works Council"
   );
   const [auditorToken, setAuditorToken] = useState<string>("DPO-Session-2026-09A");
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
   const [revealedReceipt, setRevealedReceipt] = useState<RevealReceipt | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const revealBannerRef = React.useRef<HTMLDivElement | null>(null);
+
+  // Sync token if vaultStatus provides a specific demo token and input is still default
+  React.useEffect(() => {
+    if (vaultStatus.demo_subject_token && subjectToken === "Subject-Theta-482") {
+      setSubjectToken(vaultStatus.demo_subject_token);
+    }
+  }, [vaultStatus.demo_subject_token]);
 
   const toggleShare = (index: number) => {
+    setErrorMessage(null);
     if (selectedShares.includes(index)) {
       setSelectedShares(selectedShares.filter((i) => i !== index));
     } else {
@@ -36,11 +48,30 @@ export const ShamirCeremonyCard: React.FC<ShamirCeremonyCardProps> = ({
   };
 
   const handleRun = async () => {
-    if (selectedShares.length < 2) return;
+    if (selectedShares.length < 2) {
+      setErrorMessage("At least 2 custodian shares must be selected to meet the 2-of-3 threshold.");
+      return;
+    }
     setIsExecuting(true);
+    setErrorMessage(null);
     try {
-      const receipt = await onExecuteCeremony(selectedShares, subjectToken, justification, auditorToken);
-      if (receipt) setRevealedReceipt(receipt);
+      const receipt = await onExecuteCeremony(
+        selectedShares,
+        subjectToken.trim() || "Subject-Theta-482",
+        justification,
+        auditorToken
+      );
+      if (receipt) {
+        setRevealedReceipt(receipt);
+        setTimeout(() => {
+          revealBannerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, 100);
+      } else {
+        setErrorMessage("Threshold unmasking failed: Unable to verify cryptographic authorization.");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Reveal ceremony execution encountered an unexpected error.";
+      setErrorMessage(msg);
     } finally {
       setIsExecuting(false);
     }
@@ -94,7 +125,7 @@ export const ShamirCeremonyCard: React.FC<ShamirCeremonyCardProps> = ({
                   checked={isSelected}
                   onChange={() => {}}
                   aria-label={`Select Share ${share.index}`}
-                  className="w-4 h-4 rounded text-cyan-500 accent-cyan-400 cursor-pointer"
+                  className="w-4 h-4 rounded text-cyan-500 accent-cyan-400 cursor-pointer pointer-events-none"
                 />
               </div>
 
@@ -148,6 +179,14 @@ export const ShamirCeremonyCard: React.FC<ShamirCeremonyCardProps> = ({
         </div>
       </div>
 
+      {/* Error Message Alert */}
+      {errorMessage && (
+        <div className="p-3 rounded-lg bg-rose-950/70 border border-rose-500/60 text-rose-200 text-xs flex items-center gap-2 animate-in fade-in">
+          <AlertOctagon className="w-4 h-4 text-rose-400 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
       {/* Execute Button */}
       <div className="flex items-center justify-between pt-2">
         <div className="text-xs font-mono text-slate-400">
@@ -169,7 +208,10 @@ export const ShamirCeremonyCard: React.FC<ShamirCeremonyCardProps> = ({
 
       {/* Reveal Result Banner */}
       {revealedReceipt && (
-        <div className="p-4 rounded-xl bg-gradient-to-r from-cyan-950/80 to-blue-950/80 border border-cyan-400/80 space-y-2 glow-cyan animate-in fade-in duration-300">
+        <div
+          ref={revealBannerRef}
+          className="p-4 rounded-xl bg-gradient-to-r from-cyan-950/80 to-blue-950/80 border border-cyan-400/80 space-y-2 glow-cyan animate-in fade-in duration-300"
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />

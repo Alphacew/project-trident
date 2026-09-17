@@ -12,6 +12,7 @@ Maintains singleton state for the FastAPI application:
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import os
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -63,8 +64,16 @@ class ScenarioDemoManager:
         self.anti_harassment = AntiHarassmentGuard()
 
         # Pre-seed real employee mapping in sealed vault for demo subject
-        self.real_identity = "elena.rostova@megacorp.internal"
-        self.demo_subject_token = self.pseudonymizer.pseudonymize(self.real_identity)
+        self.real_identity = "Elena Rostova (Staff Systems Engineer, EMP-84920)"
+        self.demo_subject_token = "Subject-Theta-482"
+        # Explicitly encrypt into sealed vault under master key for Lagrange verification
+        nonce = os.urandom(12)
+        ciphertext = self.pseudonymizer._aesgcm.encrypt(
+            nonce,
+            self.real_identity.encode("utf-8"),
+            self.demo_subject_token.encode("utf-8"),
+        )
+        self.pseudonymizer._sealed_vault[self.demo_subject_token] = (nonce, ciphertext)
 
         self.active_dataset: Optional[ScenarioDataset] = None
         self.execution_result: Optional[ScenarioExecutionResult] = None
