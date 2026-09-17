@@ -132,6 +132,7 @@ export const api = {
           n.data?.node_type?.toUpperCase() ||
           (n.id.startsWith("Subject-") ? "ACTOR" : n.is_canary ? "CANARY" : "DATABASE"),
         sensitivity: n.data?.sensitivity ?? n.sensitivity ?? 0.5,
+        position: n.position || n.data?.position,
       }));
 
       const edges: CausalEdge[] = data.edges.map((e: any) => ({

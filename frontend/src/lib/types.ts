@@ -72,6 +72,7 @@ export interface CausalNode {
   label: string;
   category: "ACTOR" | "CREDENTIAL" | "DATABASE" | "DISCOVERY" | "CANARY" | string;
   sensitivity: number;
+  position?: { x: number; y: number };
 }
 
 export interface CausalEdge {

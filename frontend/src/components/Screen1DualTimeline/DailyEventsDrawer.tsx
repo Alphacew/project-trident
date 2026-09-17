@@ -93,7 +93,7 @@ export const DailyEventsDrawer: React.FC<DailyEventsDrawerProps> = ({
                     </span>
                   </td>
                   <td className="py-2 px-3 whitespace-nowrap">
-                    {evt.business_context && evt.business_context.ticket_ids.length > 0 ? (
+                    {evt.business_context?.ticket_ids && evt.business_context.ticket_ids.length > 0 ? (
                       <span className="px-1.5 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800 text-[10px]">
                         {evt.business_context.ticket_ids.join(", ")}
                       </span>
@@ -102,7 +102,7 @@ export const DailyEventsDrawer: React.FC<DailyEventsDrawerProps> = ({
                     )}
                   </td>
                   <td className="py-2 px-3 text-slate-500 truncate max-w-[120px]" title={evt.raw_payload_hash}>
-                    {evt.raw_payload_hash.substring(0, 16)}...
+                    {(evt.raw_payload_hash || "0000000000000000").substring(0, 16)}...
                   </td>
                 </tr>
               ))}

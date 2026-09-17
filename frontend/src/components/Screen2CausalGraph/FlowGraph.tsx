@@ -8,6 +8,8 @@ import {
   MarkerType,
   Node,
   Edge,
+  Handle,
+  Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { User, Key, Database, FolderGit2, HardDrive, ShieldAlert, Sparkles } from "lucide-react";
@@ -20,9 +22,10 @@ interface FlowGraphProps {
   canaryTripped: boolean;
 }
 
-// Custom Node Components
+// Custom Node Components with React Flow Connection Handles
 const CustomActorNode = ({ data }: { data: any }) => (
-  <div className="px-4 py-3 rounded-xl bg-slate-900 border-2 border-cyan-400/80 shadow-lg shadow-cyan-500/20 text-slate-100 flex items-center gap-3 min-w-[200px]">
+  <div className="px-4 py-3 rounded-xl bg-slate-900 border-2 border-cyan-400/80 shadow-lg shadow-cyan-500/20 text-slate-100 flex items-center gap-3 min-w-[200px] relative">
+    <Handle type="target" position={Position.Left} className="w-2 h-2 !bg-cyan-400" />
     <div className="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center">
       <User className="w-4 h-4 text-cyan-300" />
     </div>
@@ -30,6 +33,7 @@ const CustomActorNode = ({ data }: { data: any }) => (
       <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-400 block font-bold">Investigated Actor</span>
       <span className="text-xs font-mono font-semibold">{data.label}</span>
     </div>
+    <Handle type="source" position={Position.Right} className="w-2 h-2 !bg-cyan-400" />
   </div>
 );
 
@@ -48,7 +52,8 @@ const CustomEntityNode = ({ data }: { data: any }) => {
   };
 
   return (
-    <div className={`px-4 py-3 rounded-xl bg-slate-900/90 border ${getBorderColor()} shadow-md text-slate-100 flex items-center gap-3 min-w-[210px]`}>
+    <div className={`px-4 py-3 rounded-xl bg-slate-900/90 border ${getBorderColor()} shadow-md text-slate-100 flex items-center gap-3 min-w-[210px] relative`}>
+      <Handle type="target" position={Position.Left} className="w-2 h-2 !bg-slate-400" />
       <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center">
         {getIcon()}
       </div>
@@ -63,6 +68,7 @@ const CustomEntityNode = ({ data }: { data: any }) => {
           {data.label}
         </span>
       </div>
+      <Handle type="source" position={Position.Right} className="w-2 h-2 !bg-slate-400" />
     </div>
   );
 };
@@ -75,8 +81,9 @@ const CustomCanaryNode = ({ data }: { data: any }) => {
         isTripped
           ? "border-rose-500 shadow-xl shadow-rose-600/40 glow-rose animate-pulse"
           : "border-cyan-400/60 shadow-lg shadow-cyan-500/20"
-      } text-slate-100 flex items-center gap-3 min-w-[230px]`}
+      } text-slate-100 flex items-center gap-3 min-w-[230px] relative`}
     >
+      <Handle type="target" position={Position.Left} className="w-2 h-2 !bg-rose-400" />
       <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isTripped ? "bg-rose-500/20 text-rose-300" : "bg-cyan-500/20 text-cyan-300"}`}>
         <ShieldAlert className="w-4 h-4" />
       </div>
@@ -90,6 +97,7 @@ const CustomCanaryNode = ({ data }: { data: any }) => {
           {data.label}
         </span>
       </div>
+      <Handle type="source" position={Position.Right} className="w-2 h-2 !bg-rose-400" />
     </div>
   );
 };
@@ -123,7 +131,7 @@ export const FlowGraph: React.FC<FlowGraphProps> = ({
       rawNodes.map((n) => ({
         id: n.id,
         type: n.category === "ACTOR" ? "customActor" : n.category === "CANARY" ? "customCanary" : "customEntity",
-        position: layoutPositions[n.id] || { x: 100, y: 100 },
+        position: n.position || layoutPositions[n.id] || { x: 100, y: 100 },
         data: {
           label: n.label,
           category: n.category,
