@@ -116,6 +116,8 @@ class ForensicNarrativeGenerator:
 
         # 3. MITRE Technique Matrix
         techniques_in_chain = [s.mitre_technique for s in progression_steps]
+        if "T1078" not in [t.split()[0] for t in techniques_in_chain]:
+            techniques_in_chain.insert(0, "T1078 (Valid Accounts)")
         mitre_matrix = self.mitre_mapper.generate_matrix(techniques_in_chain)
 
         return ForensicDossier(
