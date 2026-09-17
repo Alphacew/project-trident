@@ -27,12 +27,12 @@ export const TimelineChart: React.FC<TimelineChartProps> = ({
   const chartData = timeline.map((snap) => ({
     day: `Day ${snap.day}`,
     dayNum: snap.day,
-    rawAnomaly: snap.raw_anomaly_score,
-    attenuatedRisk: snap.composite_risk,
-    cusumDrift: parseFloat(snap.cusum_drift_score.toFixed(2)),
-    casScore: snap.context_authenticity_score,
-    discountFactor: snap.discount_factor,
-    riskTier: snap.risk_tier,
+    rawAnomaly: snap.raw_anomaly_score ?? 0,
+    attenuatedRisk: snap.composite_risk ?? 0,
+    cusumDrift: parseFloat((snap.cusum_drift_score ?? 0).toFixed(2)),
+    casScore: snap.context_authenticity_score ?? 0,
+    discountFactor: snap.discount_factor ?? 1,
+    riskTier: snap.risk_tier || "TIER_1_CONTEXTUAL_DRIFT",
   }));
 
   return (
@@ -100,12 +100,12 @@ export const TimelineChart: React.FC<TimelineChartProps> = ({
                 return (
                   <div className="bg-slate-950 border border-slate-700 rounded-lg p-3 shadow-xl text-xs font-mono space-y-1">
                     <p className="font-bold text-slate-100 border-b border-slate-800 pb-1">{d.day}</p>
-                    <p className="text-rose-400">Raw Anomaly: {d.rawAnomaly.toFixed(1)}</p>
-                    <p className="text-cyan-400 font-semibold">Attenuated Risk: {d.attenuatedRisk.toFixed(1)} / 100</p>
-                    <p className="text-purple-400">CUSUM Drift: {d.cusumDrift}</p>
+                    <p className="text-rose-400">Raw Anomaly: {(d.rawAnomaly ?? 0).toFixed(1)}</p>
+                    <p className="text-cyan-400 font-semibold">Attenuated Risk: {(d.attenuatedRisk ?? 0).toFixed(1)} / 100</p>
+                    <p className="text-purple-400">CUSUM Drift: {d.cusumDrift ?? 0}</p>
                     <div className="pt-1 border-t border-slate-800/80 text-[11px] text-slate-400">
-                      <p>Context CAS: {(d.casScore * 100).toFixed(0)}%</p>
-                      <p>Discount Factor (δ): {d.discountFactor.toFixed(2)}</p>
+                      <p>Context CAS: {((d.casScore ?? 0) * 100).toFixed(0)}%</p>
+                      <p>Discount Factor (δ): {(d.discountFactor ?? 0).toFixed(2)}</p>
                     </div>
                   </div>
                 );
@@ -118,7 +118,7 @@ export const TimelineChart: React.FC<TimelineChartProps> = ({
             <ReferenceLine yAxisId="right" y={4.0} stroke="#f43f5e" strokeDasharray="4 4" label={{ value: "Critical τ=4.0", fill: "#f43f5e", fontSize: 9 }} />
 
             {/* Active Selected Day reference */}
-            <ReferenceLine x={`Day ${selectedDay}`} stroke="#06b6d4" strokeWidth={2} />
+            <ReferenceLine yAxisId="left" x={`Day ${selectedDay}`} stroke="#06b6d4" strokeWidth={2} />
 
             {/* Lines */}
             <Line
